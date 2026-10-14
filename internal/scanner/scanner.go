@@ -18,3 +18,17 @@ func ScanPort(host string, port int, timeout time.Duration) bool {
 
 	return true
 }
+
+// ScanRange scans all ports in the range [start, end] on the given host
+// and returns the list of ports found to be open.
+func ScanRange(host string, start, end int, timeout time.Duration) []int{
+  openPorts := []int{}
+
+  for i := start; i <= end; i++ {
+    if ScanPort(host, i, timeout) {
+      openPorts = append(openPorts, i)
+    }
+  }
+
+  return openPorts
+}
