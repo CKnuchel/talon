@@ -3,9 +3,10 @@ package scanner
 import (
   "fmt"
 	"net"
+  "reflect"
+  "sort"
 	"testing"
 	"time"
-  "reflect"
 )
 
 func TestScanPort(t *testing.T) {
@@ -142,6 +143,83 @@ func TestScanRange(t *testing.T) {
 			got := ScanRange(rc.host, rc.start, rc.end, 200*time.Millisecond)
 			if !reflect.DeepEqual(got, rc.expected) {
 				t.Errorf("ScanRange(%s, %d, %d) = %v, want %v", rc.host, rc.start, rc.end, got, rc.expected)
+			}
+		})
+	}
+}
+
+func TestScanRangeConcurrent(t *testing.T) {
+	// Fixed, closely-spaced ports in a high, unlikely-to-be-used range.
+	ipv4Ports := []int{49501, 49502, 49503, 49504}
+	var ipv4Listeners []net.Listener
+	for _, p := range ipv4Ports {
+		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", p))
+		if err != nil {
+			t.Fatalf("failed to start listener on port %d: %v", p, err)
+		}
+		defer ln.Close()
+		ipv4Listeners = append(ipv4Listeners, ln)
+	}
+
+	ipv6Ports := []int{49601, 49602}
+	var ipv6Listeners []net.Listener
+	for _, p := range ipv6Ports {
+		ln, err := net.Listen("tcp", fmt.Sprintf("[::1]:%d", p))
+		if err != nil {
+			t.Fatalf("failed to start listener on port %d (IPv6): %v", p, err)
+		}
+		defer ln.Close()
+		ipv6Listeners = append(ipv6Listeners, ln)
+	}
+
+	tests := []struct {
+		name     string
+		host     string
+		start    int
+		end      int
+		workers  int
+		expected []int
+	}{
+		{
+			name:     "IPv4 range with open ports, multiple workers",
+			host:     "127.0.0.1",
+			start:    ipv4Ports[0] - 1,
+			end:      ipv4Ports[len(ipv4Ports)-1] + 1,
+			workers:  4,
+			expected: ipv4Ports,
+		},
+		{
+			name:     "IPv6 range with open ports, multiple workers",
+			host:     "::1",
+			start:    ipv6Ports[0] - 1,
+			end:      ipv6Ports[len(ipv6Ports)-1] + 1,
+			workers:  4,
+			expected: ipv6Ports,
+		},
+		{
+			name:     "workers count of 1 behaves like sequential",
+			host:     "127.0.0.1",
+			start:    ipv4Ports[0] - 1,
+			end:      ipv4Ports[len(ipv4Ports)-1] + 1,
+			workers:  1,
+			expected: ipv4Ports,
+		},
+		{
+			name:     "more workers than ports in range",
+			host:     "127.0.0.1",
+			start:    ipv4Ports[0] - 1,
+			end:      ipv4Ports[len(ipv4Ports)-1] + 1,
+			workers:  100,
+			expected: ipv4Ports,
+		},
+	}
+
+	for _, rc := range tests {
+		t.Run(rc.name, func(t *testing.T) {
+			got := ScanRangeConcurrent(rc.host, rc.start, rc.end, 200*time.Millisecond, rc.workers)
+			sort.Ints(got)
+			if !reflect.DeepEqual(got, rc.expected) {
+				t.Errorf("ScanRangeConcurrent(%s, %d, %d, workers=%d) = %v, want %v", rc.host, rc.start, rc.end, rc.workers, got, rc.expected)
 			}
 		})
 	}
