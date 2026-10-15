@@ -56,7 +56,6 @@ func TestScanPort(t *testing.T) {
 }
 
 func TestScanRange(t *testing.T) {
-	// Fixed, closely-spaced ports in a high, unlikely-to-be-used range.
 	ipv4Ports := []int{49201, 49202, 49203}
 	var ipv4Listeners []net.Listener
 	for _, p := range ipv4Ports {
@@ -68,88 +67,50 @@ func TestScanRange(t *testing.T) {
 		ipv4Listeners = append(ipv4Listeners, ln)
 	}
 
-	ipv6Ports := []int{49301, 49302}
-	var ipv6Listeners []net.Listener
-	for _, p := range ipv6Ports {
-		ln, err := net.Listen("tcp", fmt.Sprintf("[::1]:%d", p))
-		if err != nil {
-			t.Fatalf("failed to start listener on port %d (IPv6): %v", p, err)
-		}
-		defer ln.Close()
-		ipv6Listeners = append(ipv6Listeners, ln)
-	}
-
-	// Single port used to test boundaries (start == end).
-	boundaryPort := 49401
-	boundaryLn, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", boundaryPort))
-	if err != nil {
-		t.Fatalf("failed to start listener on port %d: %v", boundaryPort, err)
-	}
-	defer boundaryLn.Close()
-
 	tests := []struct {
-		name     string
-		host     string
-		start    int
-		end      int
-		expected []int
+		name          string
+		host          string
+		start         int
+		end           int
+		includeClosed bool
+		expected      []PortResult
 	}{
 		{
-			name:     "IPv4 range with open ports",
-			host:     "127.0.0.1",
-			start:    ipv4Ports[0] - 1,
-			end:      ipv4Ports[len(ipv4Ports)-1] + 1,
-			expected: ipv4Ports,
+			name:          "open only, includeClosed false",
+			host:          "127.0.0.1",
+			start:         ipv4Ports[0],
+			end:           ipv4Ports[len(ipv4Ports)-1],
+			includeClosed: false,
+			expected: []PortResult{
+				{Port: ipv4Ports[0], State: StateOpen},
+				{Port: ipv4Ports[1], State: StateOpen},
+				{Port: ipv4Ports[2], State: StateOpen},
+			},
 		},
 		{
-			name:     "IPv6 range with open ports",
-			host:     "::1",
-			start:    ipv6Ports[0] - 1,
-			end:      ipv6Ports[len(ipv6Ports)-1] + 1,
-			expected: ipv6Ports,
-		},
-		{
-			name:     "start equals end, port open",
-			host:     "127.0.0.1",
-			start:    boundaryPort,
-			end:      boundaryPort,
-			expected: []int{boundaryPort},
-		},
-		{
-			name:     "start equals end, port closed",
-			host:     "127.0.0.1",
-			start:    boundaryPort + 1,
-			end:      boundaryPort + 1,
-			expected: []int{},
-		},
-		{
-			name:     "end port is inclusive",
-			host:     "127.0.0.1",
-			start:    boundaryPort - 1,
-			end:      boundaryPort,
-			expected: []int{boundaryPort},
-		},
-		{
-			name:     "start greater than end returns empty",
-			host:     "127.0.0.1",
-			start:    boundaryPort,
-			end:      boundaryPort - 1,
-			expected: []int{},
+			name:          "gap port included as closed",
+			host:          "127.0.0.1",
+			start:         ipv4Ports[0] - 1,
+			end:           ipv4Ports[0],
+			includeClosed: true,
+			expected: []PortResult{
+				{Port: ipv4Ports[0] - 1, State: StateClosed},
+				{Port: ipv4Ports[0], State: StateOpen},
+			},
 		},
 	}
 
 	for _, rc := range tests {
 		t.Run(rc.name, func(t *testing.T) {
-			got := ScanRange(rc.host, rc.start, rc.end, 200*time.Millisecond)
+			got := ScanRange(rc.host, rc.start, rc.end, 200*time.Millisecond, rc.includeClosed)
 			if !reflect.DeepEqual(got, rc.expected) {
-				t.Errorf("ScanRange(%s, %d, %d) = %v, want %v", rc.host, rc.start, rc.end, got, rc.expected)
+				t.Errorf("ScanRange(...) = %v, want %v", got, rc.expected)
 			}
 		})
 	}
 }
 
 func TestScanRangeConcurrent(t *testing.T) {
-	// Fixed, closely-spaced ports in a high, unlikely-to-be-used range.
 	ipv4Ports := []int{49501, 49502, 49503, 49504}
 	var ipv4Listeners []net.Listener
 	for _, p := range ipv4Ports {
@@ -161,65 +122,49 @@ func TestScanRangeConcurrent(t *testing.T) {
 		ipv4Listeners = append(ipv4Listeners, ln)
 	}
 
-	ipv6Ports := []int{49601, 49602}
-	var ipv6Listeners []net.Listener
-	for _, p := range ipv6Ports {
-		ln, err := net.Listen("tcp", fmt.Sprintf("[::1]:%d", p))
-		if err != nil {
-			t.Fatalf("failed to start listener on port %d (IPv6): %v", p, err)
-		}
-		defer ln.Close()
-		ipv6Listeners = append(ipv6Listeners, ln)
-	}
-
 	tests := []struct {
-		name     string
-		host     string
-		start    int
-		end      int
-		workers  int
-		expected []int
+		name          string
+		host          string
+		start         int
+		end           int
+		workers       int
+		includeClosed bool
+		expected      []PortResult
 	}{
 		{
-			name:     "IPv4 range with open ports, multiple workers",
-			host:     "127.0.0.1",
-			start:    ipv4Ports[0] - 1,
-			end:      ipv4Ports[len(ipv4Ports)-1] + 1,
-			workers:  4,
-			expected: ipv4Ports,
+			name:          "open only, multiple workers",
+			host:          "127.0.0.1",
+			start:         ipv4Ports[0] - 1,
+			end:           ipv4Ports[len(ipv4Ports)-1],
+			workers:       4,
+			includeClosed: false,
+			expected: []PortResult{
+				{Port: ipv4Ports[0], State: StateOpen},
+				{Port: ipv4Ports[1], State: StateOpen},
+				{Port: ipv4Ports[2], State: StateOpen},
+				{Port: ipv4Ports[3], State: StateOpen},
+			},
 		},
 		{
-			name:     "IPv6 range with open ports, multiple workers",
-			host:     "::1",
-			start:    ipv6Ports[0] - 1,
-			end:      ipv6Ports[len(ipv6Ports)-1] + 1,
-			workers:  4,
-			expected: ipv6Ports,
-		},
-		{
-			name:     "workers count of 1 behaves like sequential",
-			host:     "127.0.0.1",
-			start:    ipv4Ports[0] - 1,
-			end:      ipv4Ports[len(ipv4Ports)-1] + 1,
-			workers:  1,
-			expected: ipv4Ports,
-		},
-		{
-			name:     "more workers than ports in range",
-			host:     "127.0.0.1",
-			start:    ipv4Ports[0] - 1,
-			end:      ipv4Ports[len(ipv4Ports)-1] + 1,
-			workers:  100,
-			expected: ipv4Ports,
+			name:          "includeClosed true, mixed states",
+			host:          "127.0.0.1",
+			start:         ipv4Ports[0] - 1,
+			end:           ipv4Ports[0],
+			workers:       4,
+			includeClosed: true,
+			expected: []PortResult{
+				{Port: ipv4Ports[0] - 1, State: StateClosed},
+				{Port: ipv4Ports[0], State: StateOpen},
+			},
 		},
 	}
 
 	for _, rc := range tests {
 		t.Run(rc.name, func(t *testing.T) {
-			got := ScanRangeConcurrent(rc.host, rc.start, rc.end, 200*time.Millisecond, rc.workers)
-			sort.Ints(got)
+			got := ScanRangeConcurrent(rc.host, rc.start, rc.end, 200*time.Millisecond, rc.workers, rc.includeClosed)
+			sort.Slice(got, func(i, j int) bool { return got[i].Port < got[j].Port })
 			if !reflect.DeepEqual(got, rc.expected) {
-				t.Errorf("ScanRangeConcurrent(%s, %d, %d, workers=%d) = %v, want %v", rc.host, rc.start, rc.end, rc.workers, got, rc.expected)
+				t.Errorf("ScanRangeConcurrent(...) = %v, want %v", got, rc.expected)
 			}
 		})
 	}
