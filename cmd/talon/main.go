@@ -41,7 +41,10 @@ func main() {
 		return result[i].Port < result[j].Port
 	})
 
-	scannedCount := *endPort - *startPort + 1
+scannedCount := 0
+	if *startPort <= *endPort {
+		scannedCount = *endPort - *startPort + 1
+	}
 
 	// output result
 	if err := output.PrintTable(os.Stdout, result, scannedCount, elapsed); err != nil {
