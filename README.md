@@ -1,11 +1,8 @@
 # Talon
 ![Go Version](https://img.shields.io/github/go-mod/go-version/CKnuchel/talon)
-
-![Tests](https://img.shields.io/github/actions/workflow/status/CKnuchel/talon/test.yml?branch=master&label=tests)
-![Coverage](https://raw.githubusercontent.com/CKnuchel/talon/master/badges/coverage.svg)
-
 ![Release](https://img.shields.io/github/v/tag/CKnuchel/talon?label=release)
 
+![Tests](https://img.shields.io/github/actions/workflow/status/CKnuchel/talon/test.yml?branch=master&label=tests)
 ![License](https://img.shields.io/github/license/CKnuchel/talon)
 
 
