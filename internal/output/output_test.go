@@ -66,12 +66,15 @@ func TestPrintTable(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := PrintTable(&buf, results, 1200*time.Millisecond); err != nil {
+	if err := PrintTable(&buf, results, 1024, 1200*time.Millisecond); err != nil {
 		t.Fatalf("PrintTable returned error: %v", err)
 	}
 
 	output := buf.String()
 	if !strings.Contains(output, "22") || !strings.Contains(output, "open") {
 		t.Errorf("table output missing expected content: %s", output)
+	}
+	if !strings.Contains(output, "Scanned 1024 ports") {
+		t.Errorf("table output missing correct scanned count: %s", output)
 	}
 }

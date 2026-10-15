@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-  "strconv"
+	"strconv"
 	"text/tabwriter"
 	"time"
 
@@ -14,10 +14,9 @@ import (
 
 // PrintTable writes a human-readable table of results to w, followed by
 // a one-line summary (ports scanned, open count, elapsed duration).
-func PrintTable(w io.Writer, results []scanner.PortResult, elapsed time.Duration) error {
+func PrintTable(w io.Writer, results []scanner.PortResult, scanned int, elapsed time.Duration) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 
-	// write header
 	if _, err := fmt.Fprintf(tw, "PORT\tSTATE\n"); err != nil {
 		return err
 	}
@@ -36,14 +35,13 @@ func PrintTable(w io.Writer, results []scanner.PortResult, elapsed time.Duration
 		return err
 	}
 
-	// summary
-	_, err := fmt.Fprintf(w, "\nScanned %d ports in %s - %d open\n", len(results), elapsed, open)
+	_, err := fmt.Fprintf(w, "\nScanned %d ports in %s - %d open\n", scanned, elapsed, open)
 	return err
 }
 
 // ExportJSON writes results to w as a JSON array.
 func ExportJSON(w io.Writer, results []scanner.PortResult) error {
-  return json.NewEncoder(w).Encode(results)
+	return json.NewEncoder(w).Encode(results)
 }
 
 // ExportCSV writes results to w as CSV with a header row (port,state).

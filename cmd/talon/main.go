@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -41,8 +41,10 @@ func main() {
 		return result[i].Port < result[j].Port
 	})
 
+	scannedCount := *endPort - *startPort + 1
+
 	// output result
-	if err := output.PrintTable(os.Stdout, result, elapsed); err != nil {
+	if err := output.PrintTable(os.Stdout, result, scannedCount, elapsed); err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
 	}
@@ -52,21 +54,25 @@ func main() {
 		return
 	}
 
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644) // -rw-r--r--
+	// validate extension BEFORE touching the file
+	ext := filepath.Ext(filename)
+	if ext != ".json" && ext != ".csv" {
+		fmt.Println("Error: unsupported export file extension, use .json or .csv")
+		os.Exit(1)
+	}
+
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
 	}
 	defer file.Close()
 
-	switch filepath.Ext(filename) {
+	switch ext {
 	case ".json":
 		err = output.ExportJSON(file, result)
 	case ".csv":
 		err = output.ExportCSV(file, result)
-	default:
-		fmt.Println("Error: unsupported export file extension, use .json or .csv")
-		os.Exit(1)
 	}
 
 	if err != nil {
