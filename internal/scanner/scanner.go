@@ -48,6 +48,10 @@ func ScanRange(host string, start, end int, timeout time.Duration, includeClosed
 // using multiple workers in parallel. If includeClosed is true, closed ports are
 // included in the result with StateClosed; otherwise only open ports are returned.
 func ScanRangeConcurrent(host string, start, end int, timeout time.Duration, workers int, includeClosed bool) []PortResult {
+  if start > end {
+		return []PortResult{}
+  }
+  
 	maxJobs := end - start + 1
 	jobs := make(chan int, maxJobs)
 	result := make(chan PortResult, maxJobs)

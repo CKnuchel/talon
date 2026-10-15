@@ -12,6 +12,6 @@ const (
 
 // PortResult represents the outcome of scanning a single port.
 type PortResult struct {
-	Port  int
-	State PortState
+	Port  int       `json:"port"`
+	State PortState `json:"state"`
 }
